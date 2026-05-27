@@ -1,0 +1,1 @@
+from app.features.performance_summary.service import process_performance_summary

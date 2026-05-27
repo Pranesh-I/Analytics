@@ -1,56 +1,169 @@
+import { useLocation, useNavigate } from 'react-router-dom'
 import MainLayout from '../components/layout/MainLayout'
+import SectionCard from '../components/common/SectionCard'
+import EmptyState from '../components/common/EmptyState'
+import ActionButton from '../components/common/ActionButton'
 
 function Preview() {
-  const sampleRows = [
-    { rollno: '101', name: 'Student A', phymarks: 78, chemmarks: 82, mathsmarks: 74, total: 234, percentage: '78%' },
-    { rollno: '102', name: 'Student B', phymarks: 69, chemmarks: 75, mathsmarks: 71, total: 215, percentage: '71.6%' },
-    { rollno: '103', name: 'Student C', phymarks: 88, chemmarks: 90, mathsmarks: 84, total: 262, percentage: '87.3%' },
-  ]
+  const location = useLocation()
+  const navigate = useNavigate()
+  const data = location.state
+
+  const errorReportPreview =
+    data?.files?.errorReport?.analysis?.preview_rows || []
+
+  const markListPreview =
+    data?.files?.markList?.analysis?.preview_rows || []
+
+  const blueprintPreview =
+    data?.files?.blueprint?.analysis?.preview_rows || []
 
   return (
     <MainLayout>
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-slate-800">Preview Data</h1>
-        <p className="mt-2 text-gray-600">
-          Here you can preview the extracted and merged student data before report generation.
+        <p className="mt-2 max-w-2xl text-gray-600">
+          This page shows the real data returned from the backend after upload and validation.
         </p>
       </div>
 
-      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-        <div className="border-b border-slate-200 p-4">
-          <h2 className="text-lg font-semibold text-slate-800">Sample Preview Table</h2>
-        </div>
+      {!data ? (
+        <EmptyState
+          title="No uploaded data found"
+          description="Upload the files first to see the preview here."
+          actionText="Go to Upload"
+          onAction={() => navigate('/upload')}
+        />
+      ) : (
+        <>
+          <div className="grid gap-4 md:grid-cols-3">
+            <SectionCard title="Upload Status">
+              <p className="text-sm text-slate-600">
+                {data.message || 'Files processed successfully.'}
+              </p>
+            </SectionCard>
 
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-slate-200">
-            <thead className="bg-slate-50">
-              <tr>
-                <th className="px-4 py-3 text-left text-sm font-semibold text-slate-700">Roll No</th>
-                <th className="px-4 py-3 text-left text-sm font-semibold text-slate-700">Name</th>
-                <th className="px-4 py-3 text-left text-sm font-semibold text-slate-700">Physics</th>
-                <th className="px-4 py-3 text-left text-sm font-semibold text-slate-700">Chemistry</th>
-                <th className="px-4 py-3 text-left text-sm font-semibold text-slate-700">Maths</th>
-                <th className="px-4 py-3 text-left text-sm font-semibold text-slate-700">Total</th>
-                <th className="px-4 py-3 text-left text-sm font-semibold text-slate-700">Percentage</th>
-              </tr>
-            </thead>
+            <SectionCard title="Merged Rows">
+              <p className="text-2xl font-bold text-slate-800">
+                {data?.merged?.merged_row_count ?? 0}
+              </p>
+            </SectionCard>
 
-            <tbody className="divide-y divide-slate-100 bg-white">
-              {sampleRows.map((row) => (
-                <tr key={row.rollno} className="hover:bg-slate-50">
-                  <td className="px-4 py-3 text-sm text-slate-700">{row.rollno}</td>
-                  <td className="px-4 py-3 text-sm text-slate-700">{row.name}</td>
-                  <td className="px-4 py-3 text-sm text-slate-700">{row.phymarks}</td>
-                  <td className="px-4 py-3 text-sm text-slate-700">{row.chemmarks}</td>
-                  <td className="px-4 py-3 text-sm text-slate-700">{row.mathsmarks}</td>
-                  <td className="px-4 py-3 text-sm font-medium text-slate-900">{row.total}</td>
-                  <td className="px-4 py-3 text-sm text-slate-700">{row.percentage}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
+            <SectionCard title="Roll Number Match">
+              <p className="text-sm text-slate-600">
+                Common: {data?.merged?.rollno_check?.common_count ?? 0}
+              </p>
+              <p className="text-sm text-slate-600">
+                Only in ErrorReport: {data?.merged?.rollno_check?.only_in_first_count ?? 0}
+              </p>
+              <p className="text-sm text-slate-600">
+                Only in MarkList: {data?.merged?.rollno_check?.only_in_second_count ?? 0}
+              </p>
+            </SectionCard>
+          </div>
+
+          <div className="mt-8 grid gap-6 xl:grid-cols-3">
+            <SectionCard title="ErrorReport Preview">
+              {errorReportPreview.length > 0 ? (
+                <div className="overflow-x-auto">
+                  <table className="min-w-full text-left text-sm">
+                    <thead>
+                      <tr className="border-b">
+                        {Object.keys(errorReportPreview[0]).map((key) => (
+                          <th key={key} className="px-3 py-2 font-semibold text-slate-700">
+                            {key}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {errorReportPreview.map((row, idx) => (
+                        <tr key={idx} className="border-b">
+                          {Object.values(row).map((value, i) => (
+                            <td key={i} className="px-3 py-2 text-slate-600">
+                              {String(value ?? '')}
+                            </td>
+                          ))}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <p className="text-sm text-slate-500">No preview available.</p>
+              )}
+            </SectionCard>
+
+            <SectionCard title="MarkList Preview">
+              {markListPreview.length > 0 ? (
+                <div className="overflow-x-auto">
+                  <table className="min-w-full text-left text-sm">
+                    <thead>
+                      <tr className="border-b">
+                        {Object.keys(markListPreview[0]).map((key) => (
+                          <th key={key} className="px-3 py-2 font-semibold text-slate-700">
+                            {key}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {markListPreview.map((row, idx) => (
+                        <tr key={idx} className="border-b">
+                          {Object.values(row).map((value, i) => (
+                            <td key={i} className="px-3 py-2 text-slate-600">
+                              {String(value ?? '')}
+                            </td>
+                          ))}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <p className="text-sm text-slate-500">No preview available.</p>
+              )}
+            </SectionCard>
+
+            <SectionCard title="Blueprint Preview">
+              {blueprintPreview.length > 0 ? (
+                <div className="overflow-x-auto">
+                  <table className="min-w-full text-left text-sm">
+                    <thead>
+                      <tr className="border-b">
+                        {Object.keys(blueprintPreview[0]).map((key) => (
+                          <th key={key} className="px-3 py-2 font-semibold text-slate-700">
+                            {key}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {blueprintPreview.map((row, idx) => (
+                        <tr key={idx} className="border-b">
+                          {Object.values(row).map((value, i) => (
+                            <td key={i} className="px-3 py-2 text-slate-600">
+                              {String(value ?? '')}
+                            </td>
+                          ))}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <p className="text-sm text-slate-500">No preview available.</p>
+              )}
+            </SectionCard>
+          </div>
+
+          <div className="mt-8 flex justify-end">
+            <ActionButton onClick={() => navigate('/report')}>
+              Go to Report
+            </ActionButton>
+          </div>
+        </>
+      )}
     </MainLayout>
   )
 }

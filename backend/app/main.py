@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.routes.upload import router as upload_router
+from app.api.routes.upload import router as upload_router
 
 app = FastAPI(title="School Analytics API")
 app.include_router(upload_router)

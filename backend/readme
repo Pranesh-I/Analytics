@@ -1,0 +1,4 @@
+pip install fastapi uvicorn pandas openpyxl python-multipart
+pip install pdfplumber python-docx
+pip install xlrd
+uvicorn app.main:app --reload
