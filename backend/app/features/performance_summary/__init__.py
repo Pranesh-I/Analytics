@@ -1,1 +1,2 @@
 from app.features.performance_summary.service import process_performance_summary
+from app.features.subject_summary import process_subject_summary

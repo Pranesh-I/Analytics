@@ -1,14 +1,16 @@
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 from openpyxl import Workbook
 
+from app.features.subject_summary.report import write_subject_summary_sheet
 from app.utils.excel_utils import write_standard_sheet
 
 
 def generate_performance_report(
     output_path: str,
     performance_rows: List[Dict[str, Any]],
+    subject_rows: Optional[List[Dict[str, Any]]] = None,
 ) -> str:
     wb = Workbook()
 
@@ -43,7 +45,13 @@ def generate_performance_report(
         ]
         for r in performance_rows
     ]
+
     write_standard_sheet(ws, "PERFORMANCE SUMMARY", perf_headers, perf_rows)
+
+    # Subject-wise sheet
+    if subject_rows is not None:
+        ws2 = wb.create_sheet("2_Subjectwise")
+        write_subject_summary_sheet(ws2, subject_rows)
 
     out = Path(output_path)
     out.parent.mkdir(parents=True, exist_ok=True)

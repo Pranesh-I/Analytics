@@ -1,1 +1,3 @@
-# Subject Summary report feature (future placeholder)
+from .service import process_subject_summary
+
+__all__ = ["process_subject_summary"]
