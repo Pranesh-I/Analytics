@@ -12,19 +12,15 @@ function Sidebar() {
 
       <nav className="flex flex-col gap-3">
         <NavLink to="/" className={linkClass}>
-          Home
+          Dashboard
         </NavLink>
 
-        <NavLink to="/upload" className={linkClass}>
-          Upload Files
+        <NavLink to="/schools" className={linkClass}>
+          Schools
         </NavLink>
 
-        <NavLink to="/preview" className={linkClass}>
-          Preview
-        </NavLink>
-
-        <NavLink to="/report" className={linkClass}>
-          Report
+        <NavLink to="/comparison" className={linkClass}>
+          Comparison
         </NavLink>
       </nav>
     </div>

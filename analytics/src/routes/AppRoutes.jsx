@@ -1,17 +1,27 @@
 import { Routes, Route } from 'react-router-dom'
 
 import Home from '../pages/Home'
-import Upload from '../pages/Upload'
-import Preview from '../pages/Preview'
-import Report from '../pages/Report'
+import Schools from '../pages/Schools'
+import SchoolDetails from '../pages/SchoolDetails'
+import TestDetails from '../pages/TestDetails'
+import DatabaseView from '../pages/DatabaseView'
+import ReportsPage from '../pages/Report'
+import StudentDetails from '../pages/StudentDetails'
+import Comparison from '../pages/Comparison'
+import NotFound from '../pages/NotFound'
 
 function AppRoutes() {
   return (
     <Routes>
       <Route path="/" element={<Home />} />
-      <Route path="/upload" element={<Upload />} />
-      <Route path="/preview" element={<Preview />} />
-      <Route path="/report" element={<Report />} />
+      <Route path="/schools" element={<Schools />} />
+      <Route path="/schools/:id" element={<SchoolDetails />} />
+      <Route path="/tests/:id" element={<TestDetails />} />
+      <Route path="/students/:id" element={<StudentDetails />} />
+      <Route path="/reports" element={<ReportsPage />} />
+      <Route path="/database" element={<DatabaseView />} />
+      <Route path="/comparison" element={<Comparison />} />
+      <Route path="*" element={<NotFound />} />
     </Routes>
   )
 }

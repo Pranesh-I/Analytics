@@ -158,7 +158,7 @@ function Preview() {
           </div>
 
           <div className="mt-8 flex justify-end">
-            <ActionButton onClick={() => navigate('/report')}>
+            <ActionButton onClick={() => navigate('/reports')}>
               Go to Report
             </ActionButton>
           </div>

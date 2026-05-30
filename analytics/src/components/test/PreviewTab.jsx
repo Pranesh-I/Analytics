@@ -1,0 +1,162 @@
+import SectionCard from '../common/SectionCard'
+import EmptyState from '../common/EmptyState'
+import ActionButton from '../common/ActionButton'
+
+export default function PreviewTab({ data, onNext }) {
+  const errorReportPreview =
+    data?.files?.errorReport?.analysis?.preview_rows || []
+
+  const markListPreview =
+    data?.files?.markList?.analysis?.preview_rows || []
+
+  const blueprintPreview =
+    data?.files?.blueprint?.analysis?.preview_rows || []
+
+  if (!data) {
+    return (
+      <EmptyState
+        title="No uploaded data found"
+        description="Upload the files first to see the preview here."
+        actionText="Go to Upload Files"
+      />
+    )
+  }
+
+  return (
+    <div>
+      <div className="mb-8">
+        <h2 className="text-2xl font-bold text-slate-800">Preview Data</h2>
+        <p className="mt-2 text-gray-600">
+          This page shows the real data returned from the backend after upload and validation.
+        </p>
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-3">
+        <SectionCard title="Upload Status">
+          <p className="text-sm text-slate-600">
+            {data.message || 'Files processed successfully.'}
+          </p>
+        </SectionCard>
+
+        <SectionCard title="Merged Rows">
+          <p className="text-2xl font-bold text-slate-800">
+            {data?.merged?.merged_row_count ?? 0}
+          </p>
+        </SectionCard>
+
+        <SectionCard title="Roll Number Match">
+          <p className="text-sm text-slate-600">
+            Common: {data?.merged?.rollno_check?.common_count ?? 0}
+          </p>
+          <p className="text-sm text-slate-600">
+            Only in ErrorReport: {data?.merged?.rollno_check?.only_in_first_count ?? 0}
+          </p>
+          <p className="text-sm text-slate-600">
+            Only in MarkList: {data?.merged?.rollno_check?.only_in_second_count ?? 0}
+          </p>
+        </SectionCard>
+      </div>
+
+      <div className="mt-8 grid gap-6 xl:grid-cols-3">
+        <SectionCard title="ErrorReport Preview">
+          {errorReportPreview.length > 0 ? (
+            <div className="overflow-x-auto">
+              <table className="min-w-full text-left text-sm">
+                <thead>
+                  <tr className="border-b">
+                    {Object.keys(errorReportPreview[0]).map((key) => (
+                      <th key={key} className="px-3 py-2 font-semibold text-slate-700">
+                        {key}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {errorReportPreview.map((row, idx) => (
+                    <tr key={idx} className="border-b hover:bg-slate-50">
+                      {Object.values(row).map((value, i) => (
+                        <td key={i} className="px-3 py-2 text-slate-600">
+                          {String(value ?? '')}
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <p className="text-sm text-slate-500">No preview available.</p>
+          )}
+        </SectionCard>
+
+        <SectionCard title="MarkList Preview">
+          {markListPreview.length > 0 ? (
+            <div className="overflow-x-auto">
+              <table className="min-w-full text-left text-sm">
+                <thead>
+                  <tr className="border-b">
+                    {Object.keys(markListPreview[0]).map((key) => (
+                      <th key={key} className="px-3 py-2 font-semibold text-slate-700">
+                        {key}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {markListPreview.map((row, idx) => (
+                    <tr key={idx} className="border-b hover:bg-slate-50">
+                      {Object.values(row).map((value, i) => (
+                        <td key={i} className="px-3 py-2 text-slate-600">
+                          {String(value ?? '')}
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <p className="text-sm text-slate-500">No preview available.</p>
+          )}
+        </SectionCard>
+
+        <SectionCard title="Blueprint Preview">
+          {blueprintPreview.length > 0 ? (
+            <div className="overflow-x-auto">
+              <table className="min-w-full text-left text-sm">
+                <thead>
+                  <tr className="border-b">
+                    {Object.keys(blueprintPreview[0]).map((key) => (
+                      <th key={key} className="px-3 py-2 font-semibold text-slate-700">
+                        {key}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {blueprintPreview.map((row, idx) => (
+                    <tr key={idx} className="border-b hover:bg-slate-50">
+                      {Object.values(row).map((value, i) => (
+                        <td key={i} className="px-3 py-2 text-slate-600">
+                          {String(value ?? '')}
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <p className="text-sm text-slate-500">No preview available.</p>
+          )}
+        </SectionCard>
+      </div>
+
+      <div className="mt-8 flex justify-end">
+        <ActionButton onClick={onNext}>
+          Go to Reports
+        </ActionButton>
+      </div>
+    </div>
+  )
+}

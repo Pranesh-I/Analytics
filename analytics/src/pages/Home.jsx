@@ -1,57 +1,69 @@
+import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import MainLayout from '../components/layout/MainLayout'
+import api from '../services/api'
+import ActionButton from '../components/common/ActionButton'
 
 function Home() {
+  const [stats, setStats] = useState({
+    total_schools: 0,
+    total_students: 0,
+    total_tests: 0,
+    total_analytics_generated: 0
+  })
+  const navigate = useNavigate()
+
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        const response = await api.get('/dashboard/stats')
+        setStats(response.data)
+      } catch (error) {
+        console.error("Failed to load stats", error)
+      }
+    }
+    fetchStats()
+  }, [])
+
   const cards = [
-    {
-      title: 'Upload Files',
-      description: 'Add ErrorReport, MarkList, and Blueprint files.',
-      value: 'Step 1',
-    },
-    {
-      title: 'Validate Data',
-      description: 'Check columns, roll numbers, and file matching.',
-      value: 'Step 2',
-    },
-    {
-      title: 'Generate Report',
-      description: 'Create spreadsheet output and analytics.',
-      value: 'Step 3',
-    },
+    { title: 'Total Schools', value: stats.total_schools, color: 'text-blue-600' },
+    { title: 'Total Students', value: stats.total_students, color: 'text-green-600' },
+    { title: 'Total Tests', value: stats.total_tests, color: 'text-purple-600' },
+    { title: 'Total Analytics Generated', value: stats.total_analytics_generated, color: 'text-orange-600' }
   ]
 
   return (
     <MainLayout>
-      <div className="mb-8">
-        <h1 className="text-4xl font-bold text-slate-800">
-          Welcome to School Analytics Dashboard
-        </h1>
-        <p className="mt-3 max-w-2xl text-gray-600">
-          Upload exam files, validate the data, and generate smart performance reports automatically.
-        </p>
-      </div>
-
-      <div className="grid gap-6 md:grid-cols-3">
-        {cards.map((card) => (
-          <div
-            key={card.title}
-            className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"
-          >
-            <p className="text-sm font-medium text-blue-600">{card.value}</p>
-            <h2 className="mt-2 text-xl font-semibold text-slate-800">
-              {card.title}
-            </h2>
-            <p className="mt-3 text-sm text-gray-600">{card.description}</p>
+      <div className="p-6">
+        <div className="mb-8 flex justify-between items-center">
+          <div>
+            <h1 className="text-4xl font-bold text-slate-800">
+              Super Admin Dashboard
+            </h1>
+            <p className="mt-3 max-w-2xl text-gray-600">
+              Overview of the entire analytics platform across all schools.
+            </p>
           </div>
-        ))}
-      </div>
+          <ActionButton onClick={() => navigate('/schools')} variant="primary">
+            Manage Schools
+          </ActionButton>
+        </div>
 
-      <div className="mt-8 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-        <h2 className="text-lg font-semibold text-slate-800">
-          Ready to begin?
-        </h2>
-        <p className="mt-2 text-gray-600">
-          Go to Upload Files and start by adding the three required files.
-        </p>
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+          {cards.map((card) => (
+            <div
+              key={card.title}
+              className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm hover:shadow-md transition"
+            >
+              <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-wider">
+                {card.title}
+              </h2>
+              <p className={`mt-2 text-4xl font-bold ${card.color}`}>
+                {card.value}
+              </p>
+            </div>
+          ))}
+        </div>
       </div>
     </MainLayout>
   )

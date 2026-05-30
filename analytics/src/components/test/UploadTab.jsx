@@ -1,13 +1,9 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
-import MainLayout from '../components/layout/MainLayout'
-import SectionCard from '../components/common/SectionCard'
-import ActionButton from '../components/common/ActionButton'
-import api from '../services/api'
+import SectionCard from '../common/SectionCard'
+import ActionButton from '../common/ActionButton'
+import api from '../../services/api'
 
-function Upload() {
-  const navigate = useNavigate()
-
+export default function UploadTab({ testId, onSuccess }) {
   const [files, setFiles] = useState({
     errorReport: null,
     markList: null,
@@ -81,16 +77,16 @@ function Upload() {
       formData.append('mark_list', files.markList)
       formData.append('blueprint', files.blueprint)
 
-      const response = await api.post('/upload/files', formData, {
+      const response = await api.post(`/tests/${testId}/generate`, formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
         },
       })
 
-      setMessage(response.data.message || 'Files uploaded successfully.')
-      navigate('/preview', {
-        state: response.data,
-      })
+      setMessage(response.data.message || 'Analytics generated successfully.')
+      if (onSuccess) {
+        onSuccess(response.data);
+      }
     } catch (err) {
       const detail = err?.response?.data?.detail
       if (typeof detail === 'object' && detail !== null) {
@@ -104,11 +100,11 @@ function Upload() {
   }
 
   return (
-    <MainLayout>
+    <div>
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-slate-800">Upload Files</h1>
-        <p className="mt-2 max-w-2xl text-gray-600">
-          Upload the three required files to start validation and report generation.
+        <h2 className="text-2xl font-bold text-slate-800">Upload Test Files</h2>
+        <p className="mt-2 text-gray-600">
+          Upload the three required files to generate test analytics.
         </p>
       </div>
 
@@ -129,9 +125,9 @@ function Upload() {
           <SectionCard key={card.key}>
             <div className="flex items-start justify-between gap-4">
               <div>
-                <h2 className="text-xl font-semibold text-slate-800">
+                <h3 className="text-xl font-semibold text-slate-800">
                   {card.title}
-                </h2>
+                </h3>
                 <p className="mt-2 text-sm text-gray-600">{card.description}</p>
               </div>
 
@@ -169,11 +165,11 @@ function Upload() {
       <SectionCard className="mt-8">
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
-            <h2 className="text-lg font-semibold text-slate-800">
+            <h3 className="text-lg font-semibold text-slate-800">
               Upload Summary
-            </h2>
+            </h3>
             <p className="mt-1 text-sm text-gray-600">
-              Make sure all three files are uploaded before validation.
+              Make sure all three files are uploaded before generating analytics.
             </p>
           </div>
 
@@ -183,34 +179,11 @@ function Upload() {
             </ActionButton>
 
             <ActionButton disabled={!allSelected || loading} onClick={handleValidate}>
-              {loading ? 'Validating...' : 'Validate Files'}
+              {loading ? 'Generating...' : 'Generate Analytics'}
             </ActionButton>
           </div>
         </div>
-
-        <div className="mt-6 grid gap-4 md:grid-cols-3">
-          <div className="rounded-xl bg-slate-50 p-4">
-            <p className="text-sm text-slate-500">ErrorReport</p>
-            <p className="mt-1 text-sm font-medium text-slate-800">
-              {files.errorReport ? 'Uploaded' : 'Pending'}
-            </p>
-          </div>
-          <div className="rounded-xl bg-slate-50 p-4">
-            <p className="text-sm text-slate-500">MarkList</p>
-            <p className="mt-1 text-sm font-medium text-slate-800">
-              {files.markList ? 'Uploaded' : 'Pending'}
-            </p>
-          </div>
-          <div className="rounded-xl bg-slate-50 p-4">
-            <p className="text-sm text-slate-500">Blueprint</p>
-            <p className="mt-1 text-sm font-medium text-slate-800">
-              {files.blueprint ? 'Uploaded' : 'Pending'}
-            </p>
-          </div>
-        </div>
       </SectionCard>
-    </MainLayout>
+    </div>
   )
 }
-
-export default Upload
