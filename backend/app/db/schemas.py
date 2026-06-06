@@ -59,6 +59,9 @@ class StudentResponse(StudentBase):
 # ----------------------------------------------------
 class TestBase(BaseModel):
     school_id: int
+
+    exam_type: str
+
     test_type: str
     test_number: int
     test_name: str
@@ -66,6 +69,7 @@ class TestBase(BaseModel):
     status: Optional[str] = "Pending"
 
 class TestCreate(BaseModel):
+    exam_type: str
     test_type: str
     test_number: int
 

@@ -17,7 +17,7 @@ def create_test(school_id: int, test: schemas.TestCreate, db: Session = Depends(
     if not school:
         raise HTTPException(status_code=404, detail="School not found")
         
-    test_name = f"{test.test_type}-{test.test_number}"
+    test_name = f"{test.exam_type}-{test.test_type}-{test.test_number}"
     
     # Enforce unique constraint checking for duplicate test_name in the same school
     existing = db.query(models.Test).filter(
@@ -31,6 +31,7 @@ def create_test(school_id: int, test: schemas.TestCreate, db: Session = Depends(
     # Insert new test
     db_test = models.Test(
         school_id=school_id,
+        exam_type=test.exam_type,
         test_type=test.test_type,
         test_number=test.test_number,
         test_name=test_name,

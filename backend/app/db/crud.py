@@ -118,11 +118,20 @@ def save_analytics_session_data(
         school_students = db.query(models.Student).filter(models.Student.school_id == school_id).all()
         student_roll_map = {str(s.roll_no).strip(): s.id for s in school_students}
 
+        print("\n========== DB DEBUG ==========")
+        print("school_id =", school_id)
+        print("test_id =", test_id)
+        print("students in DB =", len(school_students))
+        print("roll numbers in DB =", list(student_roll_map.keys())[:10])
+        print("==============================\n")
+
         for row in performance_rows:
+            print("Excel Roll No =", row.get("roll_no"))
             roll_no = str(row.get("roll_no", "")).strip()
             student_id = student_roll_map.get(roll_no)
 
             if not student_id:
+                print("NOT FOUND IN DB:", roll_no)
                 students_not_found.append(roll_no)
                 continue
 
@@ -146,6 +155,9 @@ def save_analytics_session_data(
             )
             db.add(db_result)
             results_inserted += 1
+
+        print("\nRESULTS INSERTED =", results_inserted)
+        print("STUDENTS NOT FOUND =", len(students_not_found))
 
         db.commit()
 

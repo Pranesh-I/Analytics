@@ -3,6 +3,8 @@ from sqlalchemy.orm import Session
 from typing import List
 import pandas as pd
 import io
+import traceback
+
 
 from app.db import crud, schemas, models
 from app.db.database import get_db
@@ -115,6 +117,10 @@ async def upload_students(school_id: int, file: UploadFile = File(...), db: Sess
         raise he
     except Exception as e:
         db.rollback()
+        print("\n===== FULL ERROR =====")
+        traceback.print_exc()
+        print("======================\n")
+
         raise HTTPException(
             status_code=500,
             detail=f"Error processing and importing Excel file: {str(e)}"

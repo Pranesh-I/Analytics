@@ -16,7 +16,11 @@ export default function SchoolDetails() {
   const [analytics, setAnalytics] = useState(null);
   
   const [showAddTestModal, setShowAddTestModal] = useState(false);
-  const [newTest, setNewTest] = useState({ test_type: 'WT', test_number: '' });
+  const [newTest, setNewTest] = useState({
+    exam_type: 'NEET',
+    test_type: 'WT',
+    test_number: ''
+  });
   const [uploadingExcel, setUploadingExcel] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [expandedStudentId, setExpandedStudentId] = useState(null);
@@ -68,6 +72,7 @@ export default function SchoolDetails() {
     e.preventDefault();
     const payload = {
       school_id: parseInt(id),
+      exam_type: newTest.exam_type,
       test_type: newTest.test_type,
       test_number: parseInt(newTest.test_number)
     };
@@ -192,7 +197,11 @@ export default function SchoolDetails() {
                         {test.status}
                       </span>
                     </div>
-                    <p className="text-sm text-slate-500">Type: {test.test_type} | Number: {test.test_number}</p>
+                    <p className="text-sm text-slate-500">
+                      Exam: {test.exam_type} |
+                      Type: {test.test_type} |
+                      Number: {test.test_number}
+                    </p>
                     <div className="mt-4 text-blue-600 text-sm font-medium flex items-center">
                       Open Test &rarr;
                     </div>
@@ -442,6 +451,25 @@ export default function SchoolDetails() {
               <h2 className="text-xl font-bold mb-4">Create New Test</h2>
               <form onSubmit={handleCreateTest}>
                 <div className="mb-4">
+                <div className="mb-4">
+                    <label className="block text-sm font-medium text-slate-700 mb-1">
+                      Exam Type
+                    </label>
+
+                    <select
+                      className="w-full border border-slate-300 rounded px-3 py-2 bg-white"
+                      value={newTest.exam_type}
+                      onChange={(e) =>
+                        setNewTest({
+                          ...newTest,
+                          exam_type: e.target.value
+                        })
+                      }
+                    >
+                      <option value="NEET">NEET</option>
+                      <option value="JEE">JEE</option>
+                    </select>
+                  </div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">Test Type</label>
                   <select 
                     className="w-full border border-slate-300 rounded px-3 py-2 bg-white"

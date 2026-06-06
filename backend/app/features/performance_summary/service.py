@@ -84,4 +84,4 @@ def process_performance_summary(
         "subject_summary_analysis": subject_result,
         "report_path": report_path,
         "db_sync": db_sync_result,
-    }
+    }

@@ -39,17 +39,20 @@ class Test(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     school_id = Column(Integer, ForeignKey("schools.id", ondelete="CASCADE"), nullable=False)
-    test_type = Column(String(50), nullable=False) # DT, WT, CT, UT, RT
+
+    exam_type = Column(String(20), nullable=False, default="NEET")  # NEW
+
+    test_type = Column(String(50), nullable=False)
     test_number = Column(Integer, nullable=False)
-    test_name = Column(String(100), nullable=False) # e.g. WT-1
+    test_name = Column(String(100), nullable=False)
     test_date = Column(Date, nullable=True)
-    status = Column(String(50), default="Pending") # Pending, Processing, Completed
+    status = Column(String(50), default="Pending")
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     school = relationship("School", back_populates="tests")
     uploads = relationship("Upload", back_populates="test", cascade="all, delete-orphan")
     analytics = relationship("AnalyticsResult", back_populates="test", cascade="all, delete-orphan")
-
+    
 class Upload(Base):
     __tablename__ = "uploads"
 
