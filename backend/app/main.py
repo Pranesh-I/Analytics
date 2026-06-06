@@ -11,6 +11,7 @@ from app.api.routes.analytics import router as analytics_router
 from app.api.routes.comparison import router as comparison_router
 from app.db.database import engine, Base
 from app.db import models  # noqa: F401 — registers models with Base.metadata
+from app.api.routes.blueprints import router as blueprints_router
 
 # Configure logging
 logging.basicConfig(
@@ -29,6 +30,7 @@ app.include_router(tests_router, prefix="/api")
 app.include_router(analytics_router, prefix="/api")
 app.include_router(comparison_router, prefix="/api")
 app.include_router(comparison_router)
+app.include_router(blueprints_router, prefix="/api")
 
 app.add_middleware(
     CORSMiddleware,

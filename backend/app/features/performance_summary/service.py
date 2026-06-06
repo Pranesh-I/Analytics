@@ -31,41 +31,104 @@ def process_performance_summary(
     - Save structured student results, subject performances, exam summary, and report to PostgreSQL
     - Generate the final Excel report
     """
+
+    # ----------------------------------------------------
     # 1. Read files
+    # ----------------------------------------------------
     error_report_data = read_uploaded_file(error_report_path)
     mark_list_data = read_uploaded_file(mark_list_path)
     blueprint_data = read_uploaded_file(blueprint_path)
 
+    # ----------------------------------------------------
     # 2. Parse & Analyze
+    # ----------------------------------------------------
     error_df, error_report_analysis = analyze_error_report(error_report_data)
+
+    print("\n===== ERROR DF =====")
+    print("Columns:")
+    print(error_df.columns.tolist())
+    print("\nSample Data:")
+    print(error_df.head(10))
+    print("====================\n")
+
     mark_df, mark_list_analysis = analyze_mark_list(mark_list_data)
-    _, blueprint_analysis = analyze_blueprint(blueprint_data)
 
-    # 3. Merge error report and mark list data
-    merged_analysis = merge_error_and_mark_list(error_df, mark_df)
+    print("\n===== MARK DF =====")
+    print("Columns:")
+    print(mark_df.columns.tolist())
+    print("\nSample Data:")
+    print(mark_df.head(10))
+    print("====================\n")
 
-    # 4. Generate subject summary data
+    blueprint_df, blueprint_analysis = analyze_blueprint(blueprint_data)
+
+    print("\n===== BLUEPRINT DF =====")
+    print("Columns:")
+    print(blueprint_df.columns.tolist())
+    print("\nSample Data:")
+    print(blueprint_df.head())
+    print("========================\n")
+
+    # ----------------------------------------------------
+    # 3. Merge error report and mark list
+    # ----------------------------------------------------
+    print("\nSTEP 1")
+
+    merged_analysis = merge_error_and_mark_list(
+        error_df,
+        mark_df
+    )
+
+    print("STEP 1 DONE")
+
+    # ----------------------------------------------------
+    # 4. Subject Summary
+    # ----------------------------------------------------
+    print("\nSTEP 2")
+
     subject_result = process_subject_summary(
         error_report_path=error_report_path,
         mark_list_path=mark_list_path,
         blueprint_path=blueprint_path,
     )
+
+    print("STEP 2 DONE")
+
     subject_rows = subject_result.get("subject_rows", [])
 
-    # 5. Generate final report
-    performance_rows = merged_analysis.get("performance_rows", [])
+    # ----------------------------------------------------
+    # 5. Generate Excel Report
+    # ----------------------------------------------------
+    performance_rows = merged_analysis.get(
+        "performance_rows",
+        []
+    )
+
+    print("\nSTEP 3")
+
     report_path = generate_performance_report(
         output_path=output_path,
         performance_rows=performance_rows,
         subject_rows=subject_rows,
     )
 
-    # 6. Save structured student records and exam metrics to PostgreSQL Database
+    print("STEP 3 DONE")
+
+    # ----------------------------------------------------
+    # 6. Save Analytics To PostgreSQL
+    # ----------------------------------------------------
     db_sync_result = None
-    if db is not None and school_id is not None and test_id is not None:
+
+    if (
+        db is not None
+        and school_id is not None
+        and test_id is not None
+    ):
+
         report_name = os.path.basename(output_path)
-        # Slices database insertion into an isolated atomic transaction.
-        # This prevents duplicate students, resolves foreign keys, and logs metadata.
+
+        print("\nSTEP 4")
+
         db_sync_result = save_analytics_session_data(
             db=db,
             school_id=school_id,
@@ -75,6 +138,8 @@ def process_performance_summary(
             report_name=report_name,
             report_file_path=output_path,
         )
+
+        print("STEP 4 DONE")
 
     return {
         "error_report_analysis": error_report_analysis,

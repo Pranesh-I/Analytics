@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func
 from typing import List, Dict, Any
 import shutil
+import math
 
 from app.db import crud, schemas, models
 from app.db.database import get_db
@@ -10,6 +11,18 @@ from app.features.performance_summary.service import process_performance_summary
 from app.core.config import REPORT_FILE, UPLOAD_DIR
 
 router = APIRouter(tags=["Analytics"])
+def clean_json(obj):
+    if isinstance(obj, dict):
+        return {k: clean_json(v) for k, v in obj.items()}
+
+    if isinstance(obj, list):
+        return [clean_json(v) for v in obj]
+
+    if isinstance(obj, float):
+        if math.isnan(obj) or math.isinf(obj):
+            return None
+
+    return obj
 
 async def save_file(file: UploadFile, test_id: int, prefix: str) -> str:
     ext = file.filename.rsplit(".", 1)[-1].lower() if "." in file.filename else ""
@@ -49,28 +62,37 @@ async def generate_analytics(
         
         # Update test status
         crud.update_test_status(db, test_id, "Completed")
-        
-        return {
+        print("\n===== RESPONSE DEBUG =====")
+        print("ERROR REPORT:")
+        print(result["error_report_analysis"])
+
+        print("\nMARK LIST:")
+        print(result["mark_list_analysis"])
+
+        print("\nBLUEPRINT:")
+        print(result["blueprint_analysis"])
+
+        print("\nMERGED:")
+        print(result["merged_analysis"])
+
+        print("==========================\n")
+        response = {
             "message": "Analytics generated successfully",
             "db_sync": result.get("db_sync"),
             "report_path": result.get("report_path"),
             "files": {
-                "errorReport": { "analysis": result["error_report_analysis"] },
-                "markList": { "analysis": result["mark_list_analysis"] },
-                "blueprint": { "analysis": result["blueprint_analysis"] }
+                "errorReport": {"analysis": result["error_report_analysis"]},
+                "markList": {"analysis": result["mark_list_analysis"]},
+                "blueprint": {"analysis": result["blueprint_analysis"]}
             },
             "merged": result["merged_analysis"],
         }
+
+        return clean_json(response)
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.get("/dashboard/stats")
-def get_dashboard_stats(db: Session = Depends(get_db)):
-    total_schools = db.query(models.School).count()
-    total_students = db.query(models.Student).count()
-    total_tests = db.query(models.Test).count()
-    total_analytics = db.query(models.AnalyticsResult).count()
     
     return {
         "total_schools": total_schools,

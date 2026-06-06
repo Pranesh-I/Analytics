@@ -263,25 +263,47 @@ def analyze_mark_list(uploaded_data) -> Tuple[pd.DataFrame, Dict]:
 
 
 def analyze_blueprint(uploaded_data) -> Tuple[pd.DataFrame, Dict]:
-    if uploaded_data["type"] == "pdf":
-        pages = uploaded_data["pages"]
-        text_preview = []
 
-        for page in pages[:3]:
-            text_preview.append(
-                {
-                    "page": page["page"],
-                    "text": (page["text"][:500] if page["text"] else ""),
-                    "table_count": len(page["tables"]) if page["tables"] else 0,
-                }
-            )
+    try:
 
-        return pd.DataFrame(), {
-            "valid": True,
-            "file_type": "pdf",
-            "note": "Blueprint PDF preview extracted successfully.",
-            "pages": text_preview,
-        }
+        if uploaded_data["type"] == "pdf":
+            return pd.DataFrame(), {
+                "valid": True,
+                "file_type": "pdf"
+            }
+
+        df_raw = get_best_dataframe_from_uploaded_data(uploaded_data)
+
+        print("\n===== RAW BLUEPRINT =====")
+        print(type(df_raw))
+
+        if df_raw is not None:
+            print(df_raw.head())
+            print(df_raw.columns.tolist())
+
+        print("=========================\n")
+
+        if df_raw is None:
+            return pd.DataFrame(), {
+                "valid": False,
+                "message": "No blueprint dataframe found"
+            }
+
+        df, hdr = parse_question_analysis_sheet(df_raw)
+
+        return df, _build_analysis(
+            df,
+            hdr,
+            "question_analysis"
+        )
+
+    except Exception as e:
+
+        print("\n===== BLUEPRINT ERROR =====")
+        print(str(e))
+        print("===========================\n")
+
+        raise
 
     df_raw = get_best_dataframe_from_uploaded_data(uploaded_data)
     if df_raw is None:

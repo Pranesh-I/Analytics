@@ -139,3 +139,13 @@ class SchoolWithCounts(SchoolResponse):
     student_count: int = 0
     test_count: int = 0
     model_config = ConfigDict(from_attributes=True)
+
+class BlueprintQuestionResponse(BaseModel):
+    id: int
+    question_no: int
+    subject: str | None = None
+    chapter: str | None = None
+    topic: str | None = None
+    subtopic: str | None = None
+
+    model_config = ConfigDict(from_attributes=True)
