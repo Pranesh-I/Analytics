@@ -52,7 +52,7 @@ class Test(Base):
     school = relationship("School", back_populates="tests")
     uploads = relationship("Upload", back_populates="test", cascade="all, delete-orphan")
     analytics = relationship("AnalyticsResult", back_populates="test", cascade="all, delete-orphan")
-    
+
 class Upload(Base):
     __tablename__ = "uploads"
 
@@ -94,3 +94,91 @@ class AnalyticsResult(Base):
     school = relationship("School", back_populates="analytics")
     test = relationship("Test", back_populates="analytics")
     student = relationship("Student", back_populates="analytics")
+
+
+class TestBlueprint(Base):
+    __tablename__ = "test_blueprints"
+
+    id = Column(Integer, primary_key=True, index=True)
+
+    test_id = Column(
+        Integer,
+        ForeignKey("tests.id", ondelete="CASCADE"),
+        nullable=False
+    )
+
+    version = Column(Integer, default=1)
+
+    uploaded_at = Column(
+        DateTime(timezone=True),
+        server_default=func.now()
+    )
+
+    is_active = Column(Boolean, default=True)
+
+    questions = relationship(
+        "BlueprintQuestion",
+        back_populates="blueprint",
+        cascade="all, delete-orphan"
+    )
+
+class BlueprintQuestion(Base):
+    __tablename__ = "blueprint_questions"
+
+    id = Column(Integer, primary_key=True, index=True)
+
+    blueprint_id = Column(
+        Integer,
+        ForeignKey("test_blueprints.id", ondelete="CASCADE"),
+        nullable=False
+    )
+
+    question_no = Column(Integer, nullable=False)
+
+    subject = Column(String(100))
+    chapter = Column(String(255))
+    topic = Column(String(255))
+    subtopic = Column(String(255))
+
+    question_type = Column(String(50))
+
+    marks = Column(Float)
+
+    difficulty_level = Column(String(20))
+
+    difficulty_reason = Column(Text)
+
+    issue_note = Column(Text)
+
+    blueprint = relationship(
+        "TestBlueprint",
+        back_populates="questions"
+    )
+
+class StudentQuestionResponse(Base):
+    __tablename__ = "student_question_responses"
+
+    id = Column(Integer, primary_key=True, index=True)
+
+    student_id = Column(
+        Integer,
+        ForeignKey("students.id", ondelete="CASCADE"),
+        nullable=False
+    )
+
+    test_id = Column(
+        Integer,
+        ForeignKey("tests.id", ondelete="CASCADE"),
+        nullable=False
+    )
+
+    question_no = Column(Integer, nullable=False)
+
+    marks_obtained = Column(Float, default=0)
+
+    is_correct = Column(Boolean)
+
+    created_at = Column(
+        DateTime(timezone=True),
+        server_default=func.now()
+    )
