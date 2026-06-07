@@ -72,6 +72,17 @@ export default function UploadTab({ testId, onSuccess }) {
     setMessage('')
 
     try {
+      // PHASE 1: Upload Blueprint strictly for Database Insertion
+      const blueprintData = new FormData()
+      blueprintData.append('file', files.blueprint)
+
+      await api.post(`/tests/${testId}/blueprint/upload`, blueprintData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      })
+
+      // PHASE 2: Proceed with standard 3-file generation payload
       const formData = new FormData()
       formData.append('error_report', files.errorReport)
       formData.append('mark_list', files.markList)
