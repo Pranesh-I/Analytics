@@ -100,6 +100,7 @@ def save_analytics_session_data(
     subject_rows: List[Dict[str, Any]],
     report_name: str,
     report_file_path: str,
+    subtopic_mastery_rows: List[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     """
     Saves the processed analytics data directly into the analytics_results table.
@@ -158,6 +159,81 @@ def save_analytics_session_data(
 
         print("\nRESULTS INSERTED =", results_inserted)
         print("STUDENTS NOT FOUND =", len(students_not_found))
+
+        # --- SUBTOPIC MASTERY INTEGRATION ---
+        subtopics_inserted = 0
+        if subtopic_mastery_rows:
+            # 1. Clear old subtopic records for this test
+            deleted_sub = db.query(models.StudentSubtopicPerformance).filter(
+                models.StudentSubtopicPerformance.test_id == test_id
+            ).delete()
+            if deleted_sub > 0:
+                logger.info(f"Cleared {deleted_sub} old subtopic records for test_id={test_id}")
+
+            # 2. Fetch all previous subtopic records for these students to calculate trend
+            student_ids = list(student_roll_map.values())
+            
+            # Use chunks if there are too many students to avoid huge IN clauses
+            prev_acc_map = {}
+            if student_ids:
+                prev_subs = db.query(models.StudentSubtopicPerformance).filter(
+                    models.StudentSubtopicPerformance.student_id.in_(student_ids),
+                    models.StudentSubtopicPerformance.test_id < test_id
+                ).order_by(models.StudentSubtopicPerformance.test_id.desc()).all()
+                
+                # order_by desc ensures the first time we see (student_id, subtopic), it's the latest previous test
+                for ps in prev_subs:
+                    key = (ps.student_id, ps.subtopic)
+                    if key not in prev_acc_map:
+                        prev_acc_map[key] = ps.accuracy
+
+            # 3. Build insert mappings
+            subtopic_inserts = []
+            for row in subtopic_mastery_rows:
+                roll_no = str(row.get("roll_no", "")).strip()
+                student_id = student_roll_map.get(roll_no)
+                if not student_id:
+                    continue
+                    
+                subtopic = str(row.get("subtopic", ""))
+                current_accuracy = float(row.get("accuracy", 0.0))
+                
+                # Trend calculation
+                trend = "Stable" # Default if no previous data
+                prev_key = (student_id, subtopic)
+                if prev_key in prev_acc_map:
+                    prev_accuracy = prev_acc_map[prev_key]
+                    delta = current_accuracy - prev_accuracy
+                    if delta >= 5.0:
+                        trend = "Improving"
+                    elif delta <= -5.0:
+                        trend = "Declining"
+                    else:
+                        trend = "Stable"
+                else:
+                    trend = "N/A" # First time encountering this subtopic
+                
+                subtopic_inserts.append({
+                    "student_id": student_id,
+                    "test_id": test_id,
+                    "subject": str(row.get("subject", "")),
+                    "chapter": str(row.get("chapter", "")),
+                    "topic": str(row.get("topic", "")),
+                    "subtopic": subtopic,
+                    "total_questions": int(row.get("total_questions", 0)),
+                    "correct_questions": int(row.get("correct_questions", 0)),
+                    "wrong_questions": int(row.get("wrong_questions", 0)),
+                    "unattempted_questions": int(row.get("unattempted_questions", 0)),
+                    "accuracy": current_accuracy,
+                    "mastery_level": str(row.get("mastery_level", "")),
+                    "trend": trend
+                })
+                
+            # 4. Bulk Insert
+            if subtopic_inserts:
+                db.bulk_insert_mappings(models.StudentSubtopicPerformance, subtopic_inserts)
+                subtopics_inserted = len(subtopic_inserts)
+                print("SUBTOPICS INSERTED =", subtopics_inserted)
 
         db.commit()
 

@@ -11,6 +11,7 @@ from app.features.performance_summary.parser import (
 from app.features.performance_summary.merger import merge_error_and_mark_list
 from app.features.performance_summary.report import generate_performance_report
 from app.features.subject_summary import process_subject_summary
+from app.features.performance_summary.subtopic_engine import compute_subtopic_performance
 from app.db.crud import save_analytics_session_data
 
 
@@ -82,6 +83,15 @@ def process_performance_summary(
     print("STEP 1 DONE")
 
     # ----------------------------------------------------
+    # 3.5. Subtopic Mastery Engine
+    # ----------------------------------------------------
+    print("\nSTEP 1.5 - Subtopic Mastery")
+    
+    subtopic_mastery_rows = compute_subtopic_performance(error_df, blueprint_df)
+    
+    print("STEP 1.5 DONE")
+
+    # ----------------------------------------------------
     # 4. Subject Summary
     # ----------------------------------------------------
     print("\nSTEP 2")
@@ -135,6 +145,7 @@ def process_performance_summary(
             test_id=test_id,
             performance_rows=performance_rows,
             subject_rows=subject_rows,
+            subtopic_mastery_rows=subtopic_mastery_rows,
             report_name=report_name,
             report_file_path=output_path,
         )

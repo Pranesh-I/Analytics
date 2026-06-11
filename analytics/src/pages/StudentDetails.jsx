@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import SectionCard from '../components/common/SectionCard';
+import SubtopicDashboard from '../components/student/SubtopicDashboard';
 import MainLayout from '../components/layout/MainLayout';
 import {
   LineChart,
@@ -401,6 +402,9 @@ export default function StudentDetails() {
             )}
           </SectionCard>
         </div>
+
+        {/* Subtopic Mastery Section */}
+        <SubtopicDashboard studentId={id} />
 
         {/* Test History List */}
         <SectionCard title="Test Performance History">

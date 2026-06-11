@@ -362,3 +362,33 @@ def get_individual_student_analytics(student_id: int, db: Session = Depends(get_
         "subjects": subjects,
         "history": history
     }
+
+@router.get("/students/{student_id}/subtopics")
+def get_student_subtopics(student_id: int, test_id: int = None, db: Session = Depends(get_db)):
+    """Fetch subtopic performance for a student. If test_id is provided, fetches for that test, else fetches all history."""
+    query = db.query(models.StudentSubtopicPerformance).filter(models.StudentSubtopicPerformance.student_id == student_id)
+    if test_id:
+        query = query.filter(models.StudentSubtopicPerformance.test_id == test_id)
+        
+    records = query.order_by(models.StudentSubtopicPerformance.test_id.asc()).all()
+    
+    result = []
+    for r in records:
+        result.append({
+            "id": r.id,
+            "test_id": r.test_id,
+            "subject": r.subject,
+            "chapter": r.chapter,
+            "topic": r.topic,
+            "subtopic": r.subtopic,
+            "total_questions": r.total_questions,
+            "correct_questions": r.correct_questions,
+            "wrong_questions": r.wrong_questions,
+            "unattempted_questions": r.unattempted_questions,
+            "accuracy": r.accuracy,
+            "mastery_level": r.mastery_level,
+            "trend": r.trend,
+            "created_at": r.created_at.isoformat() if r.created_at else None
+        })
+        
+    return result

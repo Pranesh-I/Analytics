@@ -182,3 +182,26 @@ class StudentQuestionResponse(Base):
         DateTime(timezone=True),
         server_default=func.now()
     )
+
+class StudentSubtopicPerformance(Base):
+    __tablename__ = "student_subtopic_performance"
+
+    id = Column(Integer, primary_key=True, index=True)
+    student_id = Column(Integer, ForeignKey("students.id", ondelete="CASCADE"), nullable=False, index=True)
+    test_id = Column(Integer, ForeignKey("tests.id", ondelete="CASCADE"), nullable=False, index=True)
+    
+    subject = Column(String(100), index=True)
+    chapter = Column(String(255))
+    topic = Column(String(255))
+    subtopic = Column(String(255), index=True)
+    
+    total_questions = Column(Integer, default=0)
+    correct_questions = Column(Integer, default=0)
+    wrong_questions = Column(Integer, default=0)
+    unattempted_questions = Column(Integer, default=0)
+    
+    accuracy = Column(Float, default=0.0)
+    mastery_level = Column(String(50)) # EXCELLENT, GOOD, NEEDS IMPROVEMENT
+    trend = Column(String(50), default="Stable") # Improving, Declining, Stable
+    
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
