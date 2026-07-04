@@ -8,7 +8,7 @@ from app.features.performance_summary.parser import (
     analyze_mark_list,
     analyze_blueprint,
 )
-from app.features.performance_summary.merger import merge_error_and_mark_list
+from app.features.performance_summary.merger import merge_error_and_mark_list, build_subtopic_mastery
 from app.features.performance_summary.report import generate_performance_report
 from app.features.subject_summary import process_subject_summary
 from app.db.crud import save_analytics_session_data
@@ -39,7 +39,7 @@ def process_performance_summary(
     # 2. Parse & Analyze
     error_df, error_report_analysis = analyze_error_report(error_report_data)
     mark_df, mark_list_analysis = analyze_mark_list(mark_list_data)
-    _, blueprint_analysis = analyze_blueprint(blueprint_data)
+    blueprint_df, blueprint_analysis = analyze_blueprint(blueprint_data)
 
     # 3. Merge error report and mark list data
     merged_analysis = merge_error_and_mark_list(error_df, mark_df)
@@ -60,6 +60,9 @@ def process_performance_summary(
         subject_rows=subject_rows,
     )
 
+    # Generate subtopic rows
+    subtopic_rows = build_subtopic_mastery(error_df, blueprint_df)
+
     # 6. Save structured student records and exam metrics to PostgreSQL Database
     db_sync_result = None
     if db is not None and school_id is not None and test_id is not None:
@@ -72,6 +75,7 @@ def process_performance_summary(
             test_id=test_id,
             performance_rows=performance_rows,
             subject_rows=subject_rows,
+            subtopic_rows=subtopic_rows,
             report_name=report_name,
             report_file_path=output_path,
         )

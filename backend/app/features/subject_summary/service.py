@@ -236,7 +236,7 @@ def build_subjectwise_rows(merged: pd.DataFrame, blueprint_counts: Dict[str, int
                 unattempted = 0
 
             marks = round(_to_num(r.get(prefix, 0)), 0)
-            accuracy = round((correct / attempted) * 100.0, 1) if attempted else 0.0
+            accuracy = round((correct / attempted) * 100.0, 1) if attempted else None
             neg_marks = int(wrong)
 
             rows.append(

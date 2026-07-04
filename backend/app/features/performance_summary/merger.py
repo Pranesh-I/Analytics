@@ -156,7 +156,7 @@ def merge_error_and_mark_list(error_df: pd.DataFrame, mark_df: pd.DataFrame) -> 
     merged["negative_marks"] = merged["wrong"]
 
     merged["accuracy"] = merged.apply(
-        lambda r: round((r["correct"] / r["attempted"]) * 100, 1) if r["attempted"] else 0,
+        lambda r: round((r["correct"] / r["attempted"]) * 100, 1) if r["attempted"] else None,
         axis=1,
     )
 
@@ -211,3 +211,89 @@ def merge_error_and_mark_list(error_df: pd.DataFrame, mark_df: pd.DataFrame) -> 
         "performance_rows": performance_rows,
         "preview_rows": preview_rows,
     }
+
+
+def build_subtopic_mastery(error_df: pd.DataFrame, blueprint_df: pd.DataFrame) -> list:
+    subtopic_rows = []
+    
+    if blueprint_df.empty or error_df.empty:
+        return subtopic_rows
+        
+    bp_lookup = {}
+    for _, row in blueprint_df.iterrows():
+        subj = str(row.get("subject", "")).lower().strip()
+        if "phy" in subj: subj = "phy"
+        elif "che" in subj: subj = "che"
+        elif "mat" in subj: subj = "mat"
+        else: continue
+        
+        qno = str(row.get("q_no", row.get("qno", ""))).strip()
+        # Some Q.No might be floats like 1.0 from pandas
+        if qno.endswith(".0"):
+            qno = qno[:-2]
+            
+        subtopic = str(row.get("subtopicname", row.get("subtopic", ""))).strip()
+        if qno and subtopic:
+            if subj not in bp_lookup:
+                bp_lookup[subj] = {}
+            bp_lookup[subj][qno] = subtopic
+
+    for _, row in error_df.iterrows():
+        roll_no = str(row.get("roll_no", "")).strip()
+        # In Pandas, empty roll_no might be nan
+        if not roll_no or roll_no.lower() == "nan":
+            continue
+            
+        for subj in ["phy", "che", "mat"]:
+            if subj not in bp_lookup:
+                continue
+                
+            student_subtopics = {}
+            for subtopic in set(bp_lookup[subj].values()):
+                student_subtopics[subtopic] = {"correct": 0, "wrong": 0}
+            
+            r_str = str(row.get(f"{subj}_r", ""))
+            w_str = str(row.get(f"{subj}_w", ""))
+            if r_str.lower() == "nan": r_str = ""
+            if w_str.lower() == "nan": w_str = ""
+            
+            def parse_qnos(s):
+                return [x.strip() for x in s.split(",") if x.strip()]
+                
+            for qno in parse_qnos(r_str):
+                if qno.endswith(".0"): qno = qno[:-2]
+                st = bp_lookup[subj].get(qno)
+                if st:
+                    student_subtopics[st]["correct"] += 1
+                    
+            for qno in parse_qnos(w_str):
+                if qno.endswith(".0"): qno = qno[:-2]
+                st = bp_lookup[subj].get(qno)
+                if st:
+                    student_subtopics[st]["wrong"] += 1
+                    
+            # Calculate blueprint totals for this subject
+            bp_totals = {}
+            for qno, subtopic in bp_lookup[subj].items():
+                bp_totals[subtopic] = bp_totals.get(subtopic, 0) + 1
+
+            for st, counts in student_subtopics.items():
+                c = counts["correct"]
+                attempted_w = counts["wrong"]
+                tot = bp_totals.get(st, 0)
+                attempted = c + attempted_w
+                unatt = max(0, tot - attempted)
+                w = attempted_w + unatt
+                acc = round((c / tot) * 100.0, 2) if tot > 0 else None
+                
+                subtopic_rows.append({
+                    "roll_no": roll_no,
+                    "subject": "Physics" if subj == "phy" else ("Chemistry" if subj == "che" else "Maths"),
+                    "subtopic_name": st,
+                    "correct": c,
+                    "wrong": w,
+                    "attempted": attempted,
+                    "accuracy": acc
+                })
+                
+    return subtopic_rows

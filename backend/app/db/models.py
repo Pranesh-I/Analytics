@@ -76,6 +76,14 @@ class AnalyticsResult(Base):
     physics = Column(Float, nullable=True, default=0.0)
     chemistry = Column(Float, nullable=True, default=0.0)
     maths = Column(Float, nullable=True, default=0.0)
+    
+    physics_correct = Column(Integer, nullable=True, default=0)
+    physics_wrong = Column(Integer, nullable=True, default=0)
+    chemistry_correct = Column(Integer, nullable=True, default=0)
+    chemistry_wrong = Column(Integer, nullable=True, default=0)
+    maths_correct = Column(Integer, nullable=True, default=0)
+    maths_wrong = Column(Integer, nullable=True, default=0)
+    
     total_score = Column(Float, nullable=True, default=0.0)
     percentage = Column(Float, nullable=True, default=0.0)
     accuracy = Column(Float, nullable=True, default=0.0)
@@ -94,3 +102,19 @@ class AnalyticsResult(Base):
     school = relationship("School", back_populates="analytics")
     test = relationship("Test", back_populates="analytics")
     student = relationship("Student", back_populates="analytics")
+
+class SubtopicMastery(Base):
+    __tablename__ = "subtopic_mastery"
+
+    id = Column(Integer, primary_key=True, index=True)
+    student_id = Column(Integer, ForeignKey("students.id", ondelete="CASCADE"), nullable=False)
+    test_id = Column(Integer, ForeignKey("tests.id", ondelete="CASCADE"), nullable=False)
+    subject = Column(String(50), nullable=False)
+    subtopic_name = Column(String(255), nullable=False)
+    correct = Column(Integer, default=0)
+    wrong = Column(Integer, default=0)
+    attempted = Column(Integer, default=0, nullable=False)
+    accuracy = Column(Float, nullable=True)
+    
+    student = relationship("Student")
+    test = relationship("Test")

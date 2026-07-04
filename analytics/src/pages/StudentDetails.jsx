@@ -1,8 +1,9 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import SectionCard from '../components/common/SectionCard';
 import MainLayout from '../components/layout/MainLayout';
+import ErrorBoundary from '../components/common/ErrorBoundary';
 import {
   LineChart,
   Line,
@@ -22,8 +23,12 @@ export default function StudentDetails() {
   const { id } = useParams();
   const navigate = useNavigate();
   const [data, setData] = useState(null);
+  const [subtopics, setSubtopics] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  // 'combined' or a test_id string
+  const [selectedTest, setSelectedTest] = useState('combined');
+  const [activeSubtopicTab, setActiveSubtopicTab] = useState('Total');
 
   useEffect(() => {
     setLoading(true);
@@ -31,6 +36,11 @@ export default function StudentDetails() {
       .then(res => {
         setData(res.data);
         setLoading(false);
+        // Fetch subtopics (all tests combined)
+        return api.get(`/schools/students/${id}/subtopics`).catch(() => null);
+      })
+      .then(subRes => {
+        if (subRes) setSubtopics(subRes.data);
       })
       .catch(err => {
         console.error(err);
@@ -38,6 +48,47 @@ export default function StudentDetails() {
         setLoading(false);
       });
   }, [id]);
+
+  // When test selection changes, fetch subtopics filtered by test_id
+  useEffect(() => {
+    if (!data) return;
+    if (selectedTest === 'combined') {
+      api.get(`/schools/students/${id}/subtopics`).then(r => setSubtopics(r.data)).catch(() => {});
+    } else {
+      api.get(`/schools/students/${id}/subtopics?test_id=${selectedTest}`).then(r => setSubtopics(r.data)).catch(() => {});
+    }
+  }, [selectedTest, id, data]);
+
+  // Prepare subtopic columns data
+  const subtopicColumns = React.useMemo(() => {
+    if (!subtopics || !subtopics.subtopics) return [];
+    const subjects = Object.keys(subtopics.subtopics);
+    if (subjects.length === 0) return [];
+
+    let totalSubtopics = [];
+    subjects.forEach(subj => {
+      const rows = subtopics.subtopics[subj].map(r => ({ ...r, subject: subj }));
+      totalSubtopics.push(...rows);
+    });
+
+    const columns = [
+      { id: 'Total', title: 'Total', color: 'bg-slate-600', dot: 'bg-slate-500', data: totalSubtopics }
+    ];
+
+    subjects.forEach(subj => {
+      columns.push({
+        id: subj,
+        title: subj,
+        color: subj.toLowerCase().includes('phys') ? 'text-indigo-700 bg-indigo-50 border-indigo-200' :
+               subj.toLowerCase().includes('chem') ? 'text-emerald-700 bg-emerald-50 border-emerald-200' : 'text-rose-700 bg-rose-50 border-rose-200',
+        dot: subj.toLowerCase().includes('phys') ? 'bg-indigo-500' :
+             subj.toLowerCase().includes('chem') ? 'bg-emerald-500' : 'bg-rose-500',
+        data: subtopics.subtopics[subj].map(r => ({ ...r, subject: subj }))
+      });
+    });
+
+    return columns;
+  }, [subtopics]);
 
   if (loading) {
     return (
@@ -65,11 +116,39 @@ export default function StudentDetails() {
     );
   }
 
-  const { profile, overall, subjects, history } = data;
+  const { profile, combined, tests, history } = data;
+
+  // Determine which view to show
+  const isCombined = selectedTest === 'combined';
+  const activeTestData = isCombined
+    ? null
+    : tests.find(t => String(t.test_id) === String(selectedTest));
+
+  // The "overall" stats depend on the selected view
+  const activeOverall = isCombined
+    ? combined
+    : activeTestData
+      ? {
+          total_tests: 1,
+          average_score: activeTestData.total_score,
+          average_accuracy: activeTestData.accuracy,
+          attempted: activeTestData.attempted,
+          correct: activeTestData.correct,
+          wrong: activeTestData.wrong,
+          negative_marks: activeTestData.negative_marks,
+          band: activeTestData.band,
+          risk_exp_best: activeTestData.risk_exp_best
+        }
+      : combined;
+
+  // The subjects breakdown for the selected view
+  const activeSubjects = isCombined
+    ? combined.subjects
+    : (activeTestData ? activeTestData.subjects : combined.subjects);
 
   const getRiskBadge = (risk) => {
     const riskLower = String(risk).toLowerCase();
-    if (riskLower.includes('high')) {
+    if (riskLower.includes('high') || riskLower.includes('critical')) {
       return (
         <span className="inline-flex items-center rounded-full bg-red-50 border border-red-200 px-3 py-1 text-sm font-bold text-red-700 shadow-sm">
           🚨 High Risk
@@ -92,13 +171,13 @@ export default function StudentDetails() {
 
   const getBandColor = (band) => {
     const b = String(band).toUpperCase();
-    if (b.startsWith('A') || b.startsWith('E')) return 'text-green-600 border-green-200 bg-green-50';
-    if (b.startsWith('B') || b.startsWith('C')) return 'text-blue-600 border-blue-200 bg-blue-50';
+    if (b.startsWith('E')) return 'text-green-600 border-green-200 bg-green-50';
+    if (b.startsWith('S') || b.startsWith('A')) return 'text-blue-600 border-blue-200 bg-blue-50';
     return 'text-amber-600 border-amber-200 bg-amber-50';
   };
 
   // Format history for recharts to ensure numeric values
-  const chartHistoryData = [...history].reverse().map(h => ({
+  const chartHistoryData = [...(history || [])].reverse().map(h => ({
     name: h.test_name,
     'Total Score': h.total_score || 0,
     'Accuracy (%)': h.accuracy || 0,
@@ -107,12 +186,19 @@ export default function StudentDetails() {
     Maths: h.maths || 0
   }));
 
-  // Format subject performance for BarChart
-  const subjectChartData = subjects.map(s => ({
+  // Format subject performance for BarChart based on active view
+  const subjectChartData = activeSubjects.map(s => ({
     name: s.subject_name,
     Marks: s.marks,
     Accuracy: s.accuracy
   }));
+
+  const getMasteryColor = (acc, correct, wrong, attempted) => {
+    if ((attempted || 0) === 0) return { bg: 'bg-slate-50 border-slate-200', text: 'text-slate-500', badge: 'Not Attempted' };
+    if (acc >= 75) return { bg: 'bg-green-100 border-green-300', text: 'text-green-800', badge: 'Strong' };
+    if (acc >= 50) return { bg: 'bg-amber-50 border-amber-200', text: 'text-amber-800', badge: 'Moderate' };
+    return { bg: 'bg-red-50 border-red-200', text: 'text-red-800', badge: 'Weak' };
+  };
 
   return (
     <MainLayout>
@@ -126,41 +212,86 @@ export default function StudentDetails() {
             <h1 className="text-3xl font-bold text-slate-800">{profile.student_name}</h1>
             <p className="text-slate-500 mt-1">
               Roll No: <span className="font-semibold text-slate-700">{profile.roll_no}</span> | 
-              Class & Section: <span className="font-semibold text-slate-700">{profile.class_name || 'Standard 12'} - {profile.section || 'A'}</span> | 
+              Class &amp; Section: <span className="font-semibold text-slate-700">{profile.class_name || 'Standard 12'} - {profile.section || 'A'}</span> | 
               School: <span className="font-semibold text-slate-700">{profile.school_name}</span>
             </p>
           </div>
           <div>
-            {getRiskBadge(overall.risk_exp_best)}
+            {getRiskBadge(activeOverall.risk_exp_best)}
           </div>
+        </div>
+
+        {/* ── Test Selector Tabs ── */}
+        {tests && tests.length > 0 && (
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              id="tab-combined"
+              onClick={() => setSelectedTest('combined')}
+              className={`px-4 py-2 rounded-full text-sm font-semibold border transition-all duration-150 ${
+                isCombined
+                  ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
+                  : 'bg-white text-slate-600 border-slate-200 hover:border-indigo-300 hover:text-indigo-600'
+              }`}
+            >
+              📊 All Tests (Combined)
+            </button>
+            {tests.map(t => (
+              <button
+                key={t.test_id}
+                id={`tab-test-${t.test_id}`}
+                onClick={() => setSelectedTest(String(t.test_id))}
+                className={`px-4 py-2 rounded-full text-sm font-semibold border transition-all duration-150 ${
+                  String(selectedTest) === String(t.test_id)
+                    ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
+                    : 'bg-white text-slate-600 border-slate-200 hover:border-indigo-300 hover:text-indigo-600'
+                }`}
+              >
+                {t.test_name}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* Scope label */}
+        <div className="text-xs text-slate-400 font-medium -mt-2">
+          {isCombined
+            ? `Showing combined view across ${combined.total_tests} test${combined.total_tests !== 1 ? 's' : ''}`
+            : `Showing isolated view for: ${activeTestData?.test_name || 'Selected Test'}${activeTestData?.test_date ? ` — ${new Date(activeTestData.test_date).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}` : ''}`
+          }
         </div>
 
         {/* Overview Stats Cards */}
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Overall Accuracy</p>
-            <p className="mt-2 text-3xl font-bold text-green-600">{overall.average_accuracy}%</p>
+            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
+              {isCombined ? 'Avg. Accuracy' : 'Accuracy'}
+            </p>
+            <p className="mt-2 text-3xl font-bold text-green-600">{activeOverall.average_accuracy}%</p>
             <div className="mt-2 w-full bg-slate-100 rounded-full h-1.5">
               <div 
                 className="bg-green-500 h-1.5 rounded-full" 
-                style={{ width: `${Math.min(100, Math.max(0, overall.average_accuracy))}%` }}
+                style={{ width: `${Math.min(100, Math.max(0, activeOverall.average_accuracy))}%` }}
               ></div>
             </div>
           </div>
 
           <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Average Test Score</p>
-            <p className="mt-2 text-3xl font-bold text-slate-800">
-              {overall.average_score} <span className="text-sm font-normal text-slate-500">/ 300</span>
+            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
+              {isCombined ? 'Average Test Score' : 'Test Score'}
             </p>
-            <p className="mt-1 text-xs text-slate-500">Calculated across {overall.total_tests} tests</p>
+            <p className="mt-2 text-3xl font-bold text-slate-800">
+              {activeOverall.average_score} <span className="text-sm font-normal text-slate-500">/ 300</span>
+            </p>
+            {isCombined && (
+              <p className="mt-1 text-xs text-slate-500">Calculated across {activeOverall.total_tests} tests</p>
+            )}
           </div>
 
           <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
             <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Performance Band</p>
             <div className="mt-2 flex items-center gap-2">
-              <span className={`inline-flex items-center rounded-lg border px-3 py-1 text-xl font-black ${getBandColor(overall.band)}`}>
-                {overall.band || 'N/A'}
+              <span className={`inline-flex items-center rounded-lg border px-3 py-1 text-xl font-black ${getBandColor(activeOverall.band)}`}>
+                {activeOverall.band || 'N/A'}
               </span>
               <p className="text-xs text-slate-500 italic">Latest assessed capability band</p>
             </div>
@@ -168,8 +299,8 @@ export default function StudentDetails() {
 
           <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
             <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Academic Risk Assessment</p>
-            <p className="mt-2 text-lg font-bold text-slate-800 capitalize">{overall.risk_exp_best || 'Normal'}</p>
-            <p className="mt-1 text-xs text-slate-500">Based on negative marking & response errors</p>
+            <p className="mt-2 text-lg font-bold text-slate-800 capitalize">{activeOverall.risk_exp_best || 'Normal'}</p>
+            <p className="mt-1 text-xs text-slate-500">Based on negative marking &amp; response errors</p>
           </div>
         </div>
 
@@ -178,47 +309,49 @@ export default function StudentDetails() {
           {/* Attempt Statistics */}
           <SectionCard title="Attempt Summary" className="lg:col-span-1">
             <div className="space-y-4 py-2">
-              <div className="flex justify-between items-center border-b border-slate-100 pb-2">
-                <span className="text-slate-500 font-medium">Tests Attempted</span>
-                <span className="font-bold text-slate-800">{overall.total_tests}</span>
-              </div>
+              {isCombined && (
+                <div className="flex justify-between items-center border-b border-slate-100 pb-2">
+                  <span className="text-slate-500 font-medium">Tests Attempted</span>
+                  <span className="font-bold text-slate-800">{activeOverall.total_tests}</span>
+                </div>
+              )}
               <div className="flex justify-between items-center border-b border-slate-100 pb-2">
                 <span className="text-slate-500 font-medium">Total Questions Attempted</span>
-                <span className="font-bold text-slate-800">{overall.attempted}</span>
+                <span className="font-bold text-slate-800">{activeOverall.attempted}</span>
               </div>
               <div className="flex justify-between items-center border-b border-slate-100 pb-2">
                 <span className="text-green-600 font-medium">Correct Answers</span>
-                <span className="font-bold text-green-600">{overall.correct}</span>
+                <span className="font-bold text-green-600">{activeOverall.correct}</span>
               </div>
               <div className="flex justify-between items-center border-b border-slate-100 pb-2">
                 <span className="text-red-500 font-medium">Wrong Answers (Errors)</span>
-                <span className="font-bold text-red-500">{overall.wrong}</span>
+                <span className="font-bold text-red-500">{activeOverall.wrong}</span>
               </div>
               <div className="flex justify-between items-center pb-1">
                 <span className="text-amber-600 font-medium">Negative Marks Incurred</span>
-                <span className="font-bold text-amber-600">-{overall.negative_marks}</span>
+                <span className="font-bold text-amber-600">-{activeOverall.negative_marks}</span>
               </div>
 
-              {/* Graphical Pie Breakdown representation inside attempt summary */}
+              {/* Response Distribution bar */}
               <div className="mt-6 border-t border-slate-100 pt-4">
                 <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Response Distribution</h4>
                 <div className="flex items-center gap-4">
                   <div className="flex-1 h-3 bg-slate-100 rounded-full overflow-hidden flex">
                     <div 
-                      title={`Correct: ${overall.correct}`}
-                      className="bg-green-500 h-full" 
-                      style={{ width: `${overall.attempted ? (overall.correct / overall.attempted) * 100 : 0}%` }}
+                      title={`Correct: ${activeOverall.correct}`}
+                      className="bg-green-500 h-full transition-all duration-300" 
+                      style={{ width: `${activeOverall.attempted ? (activeOverall.correct / activeOverall.attempted) * 100 : 0}%` }}
                     ></div>
                     <div 
-                      title={`Wrong: ${overall.wrong}`}
-                      className="bg-red-500 h-full" 
-                      style={{ width: `${overall.attempted ? (overall.wrong / overall.attempted) * 100 : 0}%` }}
+                      title={`Wrong: ${activeOverall.wrong}`}
+                      className="bg-red-500 h-full transition-all duration-300" 
+                      style={{ width: `${activeOverall.attempted ? (activeOverall.wrong / activeOverall.attempted) * 100 : 0}%` }}
                     ></div>
                   </div>
                 </div>
                 <div className="flex justify-between text-xs font-medium text-slate-500 mt-2">
-                  <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-green-500 inline-block"></span> Correct ({overall.attempted ? Math.round((overall.correct / overall.attempted) * 100) : 0}%)</span>
-                  <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-red-500 inline-block"></span> Errors ({overall.attempted ? Math.round((overall.wrong / overall.attempted) * 100) : 0}%)</span>
+                  <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-green-500 inline-block"></span> Correct ({activeOverall.attempted ? Math.round((activeOverall.correct / activeOverall.attempted) * 100) : 0}%)</span>
+                  <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-red-500 inline-block"></span> Errors ({activeOverall.attempted ? Math.round((activeOverall.wrong / activeOverall.attempted) * 100) : 0}%)</span>
                 </div>
               </div>
             </div>
@@ -226,9 +359,9 @@ export default function StudentDetails() {
 
           {/* Subject Breakdown Card */}
           <SectionCard title="Subject Performance Breakdown" className="lg:col-span-2">
-            {subjects && subjects.length > 0 ? (
+            {activeSubjects && activeSubjects.length > 0 ? (
               <div className="space-y-4">
-                {subjects.map((sub, idx) => {
+                {activeSubjects.map((sub, idx) => {
                   let subColorClass = 'border-indigo-100 bg-indigo-50/30 text-indigo-800';
                   let barColorClass = 'bg-indigo-500';
                   if (sub.subject_name.toLowerCase().includes('chem')) {
@@ -247,11 +380,19 @@ export default function StudentDetails() {
                         </span>
                         <div className="text-right">
                           <span className="text-lg font-bold text-slate-800">{sub.marks}</span>
-                          <span className="text-xs text-slate-400 font-normal"> / 100 avg</span>
+                          <span className="text-xs text-slate-400 font-normal"> / 100{isCombined ? ' avg' : ''}</span>
                         </div>
                       </div>
 
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs text-slate-500 mt-3 pt-3 border-t border-slate-50">
+                      {/* Accuracy bar */}
+                      <div className="w-full bg-slate-100 rounded-full h-1.5 mb-3">
+                        <div
+                          className={`${barColorClass} h-1.5 rounded-full transition-all duration-300`}
+                          style={{ width: `${Math.min(100, sub.accuracy || 0)}%` }}
+                        ></div>
+                      </div>
+
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs text-slate-500 pt-2 border-t border-slate-50">
                         <div>
                           <p className="text-[10px] text-slate-400 uppercase font-semibold">Attempted</p>
                           <p className="text-sm font-bold text-slate-700">{sub.attempted}</p>
@@ -286,7 +427,7 @@ export default function StudentDetails() {
 
         {/* Charts & Graphical Trend Reports */}
         <div className="grid gap-6 lg:grid-cols-2">
-          {/* Performance Trend Line Chart */}
+          {/* Performance Trend Line Chart — always shows full history */}
           <SectionCard title="Performance Trend Over Time">
             {chartHistoryData.length > 0 ? (
               <div className="h-[320px] w-full mt-4">
@@ -355,8 +496,8 @@ export default function StudentDetails() {
             )}
           </SectionCard>
 
-          {/* Subject Average Comparison Chart */}
-          <SectionCard title="Subject Performance Comparison">
+          {/* Subject Average Comparison Chart — reflects active scope */}
+          <SectionCard title={isCombined ? 'Subject Performance Comparison (Combined)' : `Subject Comparison — ${activeTestData?.test_name || ''}`}>
             {subjectChartData.length > 0 ? (
               <div className="h-[320px] w-full mt-4">
                 <ResponsiveContainer width="100%" height="100%">
@@ -384,7 +525,7 @@ export default function StudentDetails() {
                       fill="#4f46e5" 
                       radius={[8, 8, 0, 0]} 
                       maxBarSize={45} 
-                      name="Average Marks"
+                      name="Marks"
                     />
                     <Bar 
                       dataKey="Accuracy" 
@@ -401,6 +542,134 @@ export default function StudentDetails() {
             )}
           </SectionCard>
         </div>
+
+                {/* Subtopic Analysis Section */}
+        <ErrorBoundary fallback={
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden p-6 text-center">
+            <h3 className="font-bold text-red-600 mb-2">Error Loading Subtopic Analysis</h3>
+            <p className="text-slate-500 text-sm">Something went wrong while rendering subtopics. Please refresh or contact support.</p>
+          </div>
+        }>
+          <SectionCard title="Subtopic-wise Analysis">
+          {subtopicColumns.length > 0 ? (
+            <div className="mt-2 flex flex-col h-full">
+              {/* Mobile Tabs */}
+              <div className="lg:hidden flex overflow-x-auto pb-3 mb-3 gap-2 border-b border-slate-200 hide-scrollbar">
+                {subtopicColumns.map(col => (
+                  <button
+                    key={`tab-${col.id}`}
+                    onClick={() => setActiveSubtopicTab(col.id)}
+                    className={`px-4 py-1.5 rounded-full text-sm font-semibold whitespace-nowrap transition-colors ${
+                      activeSubtopicTab === col.id 
+                        ? 'bg-slate-800 text-white' 
+                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                    }`}
+                  >
+                    {col.title}
+                  </button>
+                ))}
+              </div>
+
+              {/* Columns Container */}
+              <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 flex-grow">
+                {subtopicColumns.map(col => {
+                  // Only show active tab on mobile, show all on desktop
+                  const isVisible = activeSubtopicTab === col.id;
+                  
+                  // Calculate summary for this column
+                  const summary = { strong: 0, moderate: 0, weak: 0, unattempted: 0 };
+                  col.data.forEach(row => {
+                    if ((row.attempted || 0) === 0) summary.unattempted++;
+                    else if (row.accuracy >= 75) summary.strong++;
+                    else if (row.accuracy >= 50) summary.moderate++;
+                    else summary.weak++;
+                  });
+                  const totalCount = col.data.length;
+
+                  return (
+                    <div key={`col-${col.id}`} className={`${isVisible ? 'flex' : 'hidden lg:flex'} flex-col h-[550px]`}>
+                      {/* Column Header */}
+                      <div className="mb-3 shrink-0">
+                        <h3 className="text-sm font-bold text-slate-700 uppercase tracking-wider mb-2 flex items-center gap-2">
+                          {col.title !== 'Total' && <span className={`w-2 h-2 rounded-full inline-block ${col.dot}`}></span>}
+                          {col.title} <span className="text-xs text-slate-400 font-normal normal-case">({totalCount})</span>
+                        </h3>
+                        
+                        {/* Stacked Bar Summary */}
+                        {totalCount > 0 && (
+                          <div className="w-full h-2.5 flex rounded-full overflow-hidden bg-slate-100 gap-0.5">
+                            {summary.strong > 0 && <div style={{width: `${(summary.strong/totalCount)*100}%`}} className="bg-green-500" title={`Strong: ${summary.strong}`} />}
+                            {summary.moderate > 0 && <div style={{width: `${(summary.moderate/totalCount)*100}%`}} className="bg-amber-400" title={`Moderate: ${summary.moderate}`} />}
+                            {summary.weak > 0 && <div style={{width: `${(summary.weak/totalCount)*100}%`}} className="bg-red-500" title={`Weak: ${summary.weak}`} />}
+                            {summary.unattempted > 0 && <div style={{width: `${(summary.unattempted/totalCount)*100}%`}} className="bg-slate-300" title={`Not Attempted: ${summary.unattempted}`} />}
+                          </div>
+                        )}
+                        <div className="flex justify-between text-[10px] text-slate-400 font-medium mt-1.5 px-1">
+                          <span className="text-green-600">{summary.strong}</span>
+                          <span className="text-amber-500">{summary.moderate}</span>
+                          <span className="text-red-500">{summary.weak}</span>
+                          <span className="text-slate-400">{summary.unattempted}</span>
+                        </div>
+                      </div>
+
+                      {/* Scrollable Subtopic List */}
+                      <div className="flex-grow overflow-y-auto pr-2 space-y-2 custom-scrollbar pb-4">
+                        {col.data.map((row, i) => {
+                          const mc = getMasteryColor(row.accuracy, row.correct, row.wrong, row.attempted);
+                          const totalAttempts = (row.correct || 0) + (row.wrong || 0);
+                          const isUnattempted = (row.attempted || 0) === 0;
+                          
+                          return (
+                            <div key={i} className={`rounded-xl border p-3 ${mc.bg}`}>
+                              <div className="flex justify-between items-start gap-2 mb-2">
+                                <p className={`text-xs font-semibold ${mc.text} leading-tight`}>
+                                  {col.id === 'Total' && (
+                                    <span className="text-[10px] opacity-70 uppercase block mb-0.5 font-bold tracking-wider">{row.subject}</span>
+                                  )}
+                                  {row.subtopic}
+                                </p>
+                              </div>
+                              <div className="flex justify-between items-end">
+                                <div className="flex gap-3 text-xs text-slate-500 font-medium bg-white/50 px-2 py-1 rounded-md">
+                                  <span className="text-green-600" title="Correct">✅ {row.correct || 0}</span>
+                                  <span className="text-red-500" title="Wrong">❌ {row.wrong || 0}</span>
+                                  <span className="text-slate-600 border-l border-slate-300 pl-3" title="Total Attempts">Σ {totalAttempts}</span>
+                                </div>
+                                <div className="flex flex-col items-end gap-1">
+                                  <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded whitespace-nowrap ${
+                                    isUnattempted ? 'bg-slate-200 text-slate-600' :
+                                    row.accuracy >= 75 ? 'bg-green-200 text-green-800' :
+                                    row.accuracy >= 50 ? 'bg-amber-100 text-amber-800' :
+                                    'bg-red-100 text-red-800'
+                                  }`}>
+                                    {mc.badge}
+                                  </span>
+                                  <span className={`font-bold text-sm ${isUnattempted ? 'text-slate-400' : 'text-slate-700'}`}>
+                                    {isUnattempted ? '-' : `${row.accuracy}%`}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ) : (
+            <div className="py-10 text-center">
+              <p className="text-slate-400 italic text-sm">
+                No subtopic data available for this view. Re-run analytics to populate subtopic mastery.
+              </p>
+              <p className="text-slate-300 text-xs mt-1">
+                Subtopic data is computed during the analytics generation pipeline.
+              </p>
+            </div>
+          )}
+        </SectionCard>
+        </ErrorBoundary>
 
         {/* Test History List */}
         <SectionCard title="Test Performance History">

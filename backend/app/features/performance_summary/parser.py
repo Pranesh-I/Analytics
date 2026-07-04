@@ -35,7 +35,10 @@ def get_best_dataframe_from_uploaded_data(uploaded_data):
 
 
 def preview_records(df: pd.DataFrame, limit: int = 5) -> List[Dict[str, object]]:
-    return df.head(limit).to_dict(orient="records")
+    preview_df = df.head(limit)
+    # Replace any NaN/pd.NA values with None for safe JSON serialization
+    preview_df = preview_df.where(pd.notnull(preview_df), None)
+    return preview_df.to_dict(orient="records")
 
 
 def _build_analysis(df: pd.DataFrame, header_row: int, file_type: str) -> Dict:
