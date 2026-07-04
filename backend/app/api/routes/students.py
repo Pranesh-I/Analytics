@@ -8,6 +8,7 @@ import traceback
 
 from app.db import crud, schemas, models
 from app.db.database import get_db
+from app.utils.percentile_utils import get_estimated_percentile, get_percentile_band_label
 
 router = APIRouter(prefix="/schools", tags=["Students"])
 
@@ -365,6 +366,9 @@ def get_individual_student_analytics(student_id: int, db: Session = Depends(get_
                 "negative_marks": 0,
                 "band": "N/A",
                 "risk_exp_best": "Normal",
+                "overall_estimated_percentile": 0.0,
+                "overall_percentile_label": "0–5 Percentile",
+                "overall_percentile_note": "Based on average score across 0 tests",
                 "subjects": empty_subjects
             },
             "tests": [],
@@ -378,7 +382,10 @@ def get_individual_student_analytics(student_id: int, db: Session = Depends(get_
                 "wrong": 0,
                 "negative_marks": 0,
                 "band": "N/A",
-                "risk_exp_best": "Normal"
+                "risk_exp_best": "Normal",
+                "overall_estimated_percentile": 0.0,
+                "overall_percentile_label": "0–5 Percentile",
+                "overall_percentile_note": "Based on average score across 0 tests",
             },
             "subjects": empty_subjects,
             "history": []
@@ -391,6 +398,12 @@ def get_individual_student_analytics(student_id: int, db: Session = Depends(get_
     for r in results:
         test = db.query(models.Test).filter(models.Test.id == r.test_id).first()
         test_subjects = _build_subject_breakdown(r)
+        # Per-test estimated_percentile: read from DB (computed at insert time).
+        # Fall back to computing from total_score if the stored value is missing/zero
+        # (handles rows inserted before this feature was added).
+        stored_pct = r.estimated_percentile
+        if stored_pct is None or stored_pct == 0.0:
+            stored_pct = get_estimated_percentile(r.total_score or 0.0)
         tests_list.append({
             "test_id": r.test_id,
             "test_name": test.test_name if test else f"Test #{r.test_id}",
@@ -408,6 +421,8 @@ def get_individual_student_analytics(student_id: int, db: Session = Depends(get_
             "band": r.band or "N/A",
             "risk_exp_best": r.risk_exp_best or "Normal",
             "rank": r.rank or 999,
+            "estimated_percentile": stored_pct,
+            "percentile_label": get_percentile_band_label(r.total_score or 0.0),
             "subjects": test_subjects
         })
 
@@ -496,6 +511,15 @@ def get_individual_student_analytics(student_id: int, db: Session = Depends(get_
         }
     ]
 
+    # ------------------------------------------------------------------
+    # Compute overall_estimated_percentile (statistically correct):
+    # Pass avg(total_score) through the interpolation function ONCE.
+    # This avoids the statistical error of averaging per-test percentiles.
+    # ------------------------------------------------------------------
+    overall_estimated_percentile = get_estimated_percentile(avg_score)
+    overall_percentile_label = get_percentile_band_label(avg_score)
+    overall_percentile_note = f"Based on average score across {total_tests} test{'s' if total_tests != 1 else ''}"
+
     combined = {
         "total_tests": total_tests,
         "average_score": avg_score,
@@ -506,6 +530,9 @@ def get_individual_student_analytics(student_id: int, db: Session = Depends(get_
         "negative_marks": total_negative,
         "band": band,
         "risk_exp_best": risk,
+        "overall_estimated_percentile": overall_estimated_percentile,
+        "overall_percentile_label": overall_percentile_label,
+        "overall_percentile_note": overall_percentile_note,
         "subjects": combined_subjects
     }
 
@@ -537,7 +564,10 @@ def get_individual_student_analytics(student_id: int, db: Session = Depends(get_
             "wrong": total_wrong,
             "negative_marks": total_negative,
             "band": band,
-            "risk_exp_best": risk
+            "risk_exp_best": risk,
+            "overall_estimated_percentile": overall_estimated_percentile,
+            "overall_percentile_label": overall_percentile_label,
+            "overall_percentile_note": overall_percentile_note,
         },
         "subjects": combined_subjects,
         "history": history

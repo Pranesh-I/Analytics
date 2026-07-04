@@ -146,6 +146,19 @@ export default function StudentDetails() {
     ? combined.subjects
     : (activeTestData ? activeTestData.subjects : combined.subjects);
 
+  // Percentile to display for current view
+  const activePercentile = isCombined
+    ? (combined.overall_estimated_percentile ?? 0)
+    : (activeTestData ? (activeTestData.estimated_percentile ?? 0) : 0);
+
+  const activePercentileLabel = isCombined
+    ? (combined.overall_percentile_label || '')
+    : (activeTestData ? (activeTestData.percentile_label || '') : '');
+
+  const activePercentileNote = isCombined
+    ? (combined.overall_percentile_note || '')
+    : (activeTestData ? `Score: ${activeTestData.total_score ?? 'N/A'} / 300` : '');
+
   const getRiskBadge = (risk) => {
     const riskLower = String(risk).toLowerCase();
     if (riskLower.includes('high') || riskLower.includes('critical')) {
@@ -261,7 +274,7 @@ export default function StudentDetails() {
         </div>
 
         {/* Overview Stats Cards */}
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
           <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
             <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
               {isCombined ? 'Avg. Accuracy' : 'Accuracy'}
@@ -287,20 +300,32 @@ export default function StudentDetails() {
             )}
           </div>
 
+          {/* Estimated Percentile Card */}
+          <div className="rounded-2xl border border-indigo-200 bg-gradient-to-br from-indigo-50 to-white p-5 shadow-sm">
+            <p className="text-xs font-semibold text-indigo-400 uppercase tracking-wider">
+              {isCombined ? 'Overall Est. Percentile' : 'Est. Percentile'}
+            </p>
+            <div className="mt-2 flex items-baseline gap-1">
+              <span className="text-3xl font-black text-indigo-700">{activePercentile}</span>
+              <span className="text-sm font-semibold text-indigo-400">%ile</span>
+            </div>
+            {activePercentileLabel && (
+              <p className="mt-1 text-xs font-semibold text-indigo-500">{activePercentileLabel}</p>
+            )}
+            {activePercentileNote && (
+              <p className="mt-0.5 text-[11px] text-slate-400 italic">{activePercentileNote}</p>
+            )}
+          </div>
+
           <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
             <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Performance Band</p>
             <div className="mt-2 flex items-center gap-2">
               <span className={`inline-flex items-center rounded-lg border px-3 py-1 text-xl font-black ${getBandColor(activeOverall.band)}`}>
                 {activeOverall.band || 'N/A'}
               </span>
-              <p className="text-xs text-slate-500 italic">Latest assessed capability band</p>
             </div>
-          </div>
-
-          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Academic Risk Assessment</p>
-            <p className="mt-2 text-lg font-bold text-slate-800 capitalize">{activeOverall.risk_exp_best || 'Normal'}</p>
-            <p className="mt-1 text-xs text-slate-500">Based on negative marking &amp; response errors</p>
+            <p className="mt-2 text-xs font-semibold text-slate-400 uppercase tracking-wider">Academic Risk</p>
+            <p className="mt-1 text-sm font-bold text-slate-700 capitalize">{activeOverall.risk_exp_best || 'Normal'}</p>
           </div>
         </div>
 
@@ -681,33 +706,42 @@ export default function StudentDetails() {
                   <th className="py-3 px-4">Test Date</th>
                   <th className="py-3 px-4">Total Score</th>
                   <th className="py-3 px-4">Accuracy</th>
+                  <th className="py-3 px-4">Est. Percentile</th>
                   <th className="py-3 px-4">Physics</th>
                   <th className="py-3 px-4">Chemistry</th>
                   <th className="py-3 px-4">Maths</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200 bg-white">
-                {history && history.length > 0 ? (
-                  history.map((h, idx) => (
+                {tests && tests.length > 0 ? (
+                  tests.map((t, idx) => (
                     <tr key={idx} className="hover:bg-slate-50 transition duration-150">
-                      <td className="py-3 px-4 font-semibold text-slate-800">{h.test_name}</td>
+                      <td className="py-3 px-4 font-semibold text-slate-800">{t.test_name}</td>
                       <td className="py-3 px-4 text-slate-500">
-                        {h.test_date ? new Date(h.test_date).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' }) : 'N/A'}
+                        {t.test_date ? new Date(t.test_date).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' }) : 'N/A'}
                       </td>
-                      <td className="py-3 px-4 font-bold text-blue-600">{h.total_score} <span className="text-xs text-slate-400 font-normal">/ 300</span></td>
+                      <td className="py-3 px-4 font-bold text-blue-600">{t.total_score} <span className="text-xs text-slate-400 font-normal">/ 300</span></td>
                       <td className="py-3 px-4">
                         <span className="inline-flex items-center rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-semibold text-blue-700">
-                          {h.accuracy}%
+                          {t.accuracy}%
                         </span>
                       </td>
-                      <td className="py-3 px-4 text-slate-600 font-medium">{h.physics}</td>
-                      <td className="py-3 px-4 text-slate-600 font-medium">{h.chemistry}</td>
-                      <td className="py-3 px-4 text-slate-600 font-medium">{h.maths}</td>
+                      <td className="py-3 px-4">
+                        <div className="flex flex-col">
+                          <span className="font-bold text-indigo-700">{t.estimated_percentile ?? '—'}%ile</span>
+                          {t.percentile_label && (
+                            <span className="text-[11px] text-indigo-400">{t.percentile_label}</span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="py-3 px-4 text-slate-600 font-medium">{t.physics}</td>
+                      <td className="py-3 px-4 text-slate-600 font-medium">{t.chemistry}</td>
+                      <td className="py-3 px-4 text-slate-600 font-medium">{t.maths}</td>
                     </tr>
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={7} className="py-8 text-center text-slate-500 italic">
+                    <td colSpan={8} className="py-8 text-center text-slate-500 italic">
                       No test history records found.
                     </td>
                   </tr>

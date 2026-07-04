@@ -96,6 +96,7 @@ class AnalyticsResult(Base):
     negative_marks = Column(Integer, nullable=True, default=0)
     band = Column(String(50), nullable=True)
     risk_exp_best = Column(String(50), nullable=True)
+    estimated_percentile = Column(Float, nullable=True, default=0.0)
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 

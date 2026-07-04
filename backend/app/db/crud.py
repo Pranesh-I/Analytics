@@ -2,6 +2,7 @@ import logging
 from sqlalchemy.orm import Session
 from sqlalchemy.sql import func
 from app.db import models, schemas
+from app.utils.percentile_utils import get_estimated_percentile
 from typing import List, Dict, Any, Optional
 
 logger = logging.getLogger(__name__)
@@ -160,6 +161,10 @@ def save_analytics_session_data(
             che = subj_data.get("Chemistry", {})
             mat = subj_data.get("Mathematics", {})
 
+            # Compute estimated_percentile from total_score
+            total_score_val = float(row.get("total", 0.0))
+            est_pct = get_estimated_percentile(total_score_val)
+
             db_result = models.AnalyticsResult(
                 school_id=school_id,
                 test_id=test_id,
@@ -167,7 +172,7 @@ def save_analytics_session_data(
                 physics=float(row.get("phy", 0.0)),
                 chemistry=float(row.get("che", 0.0)),
                 maths=float(row.get("mat", 0.0)),
-                total_score=float(row.get("total", 0.0)),
+                total_score=total_score_val,
                 percentage=float(row.get("percentage", 0.0)),
                 accuracy=float(row.get("accuracy", 0.0)),
                 attempted=int(row.get("attempted", 0)),
@@ -177,6 +182,7 @@ def save_analytics_session_data(
                 rank=int(row.get("rank", 0) if row.get("rank") else 0),
                 band=str(row.get("band", "")),
                 risk_exp_best=str(row.get("risk_exp_best", "")),
+                estimated_percentile=est_pct,
                 # Per-subject breakdown
                 physics_correct=int(phy.get("correct", 0)),
                 physics_wrong=int(phy.get("wrong", 0)),
